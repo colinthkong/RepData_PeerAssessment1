@@ -76,10 +76,11 @@ p <- p + theme(plot.title = element_text(hjust = 0.5))
 print(p)
 ```
 
-* Calculate and report the mean and median total number of steps taken per day
+* Calculate and report the mean, median and total number of steps taken per day
 ```{r}
 nMeanStepsEachDay <- mean(dfTotalStepsEachDay$steps)
 nMedianStepsEachDay <- median(dfTotalStepsEachDay$steps)
+nSumStepsEachDay <- sum(dfTotalStepsEachDay$steps)
 ```
 The mean of total number of steps taken per day is `r nMeanStepsEachDay`.
 
@@ -120,15 +121,52 @@ nTotalMissingValues <- nrow(dfActivity[is.na(dfActivity$steps),])
 The total number of missing values in the dataset is `r nTotalMissingValues`.
 
 * Use mean for filling in all of the missing values in the dataset.
-dfImputedActivity <- transform(merge(dfActivity, dfStepsInterval, by="interval", all.x=TRUE, no.dups=TRUE), steps.x=ifelse(is.na(steps.x), steps.y, steps.x))
-
 * Create a new dataset that is equal to the original dataset but with the missing data filled in.
+```{r}
+dfImputedActivity <- transform(merge(dfActivity, dfStepsInterval, by="interval", all.x=TRUE, no.dups=TRUE), steps.x=ifelse(is.na(steps.x), steps.y, steps.x))
+```
 
-* Make a histogram of the total number of steps taken each day and Calculate and report the mean and median total number of steps taken per day. 
+* Make a histogram of the total number of steps taken each day and calculate and report the mean and median total number of steps taken per day. 
+```{r}
+dfImputedTotalStepsEachDay <- aggregate(steps.x ~ date, dfImputedActivity, sum)
+nImputedMeanStepsEachDay <- mean(dfImputedTotalStepsEachDay$steps.x)
+nImputedMedianStepsEachDay <- median(dfImputedTotalStepsEachDay$steps.x)
+nImputedSumStepsEachDay <- sum(dfImputedTotalStepsEachDay$steps.x)
+nChangeSumStepsEachDay <- (nImputedSumStepsEachDay - nSumStepsEachDay) / nSumStepsEachDay * 100
+g <- ggplot(dfImputedTotalStepsEachDay, aes(steps.x))
+p <- g + geom_histogram(bins=5, color="black", fill="grey")
+p <- p + ggtitle("Histogram of the total number of steps taken each day")+xlab("Total number of steps each day")
+p <- p + theme(plot.title = element_text(hjust = 0.5))
+p <- p + geom_vline(aes(xintercept=nMeanStepsEachDay, color="Mean"), linewidth=1.5)
+p <- p + geom_vline(aes(xintercept=nMedianStepsEachDay, color="Median"), linetype="dashed", linewidth=1.5)
+p <- p + scale_color_manual(name = "Statistics", values = c(Mean="red", Median="blue"))
+```
 
-* Do these values differ from the estimates from the first part of the assignment? 
+The mean and the median are so close as shown in the histogram below:
+```{r}
+print(p)
+```
 
-* What is the impact of imputing missing data on the estimates of the total daily number of steps?
+The mean of total number of steps taken per day is `r nImputedMeanStepsEachDay`.
 
+The median of total number of steps taken per day is `r nImputedMedianStepsEachDay`.
+
+The mean and median are almost equivalent to the estimates from the first part of the assignment after imputing missing data.
+
+However, imputing missing data increase on the estimates of the total daily number of steps by `r nChangeSumStepsEachDay`%.
 
 ## Are there differences in activity patterns between weekdays and weekends?
+* Create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+```{r}
+dfImputedActivity <- transform(dfImputedActivity, weekday=weekdays(date, abbreviate=TRUE))
+dfImputedActivity <- transform(dfImputedActivity, weekdaytype=as.factor(ifelse(weekday %in% c("Sat","Sun"), "weekend", "weekday")))
+```
+
+*Make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis).
+```{r}
+dfImputedActivityByWeekdayType <- aggregate(steps.x~interval+weekdaytype, dfImputedActivity, mean)
+dfImputedActivityByWeekdayType <- transform(dfImputedActivityByWeekdayType, interval=as.numeric(interval))
+ggplot(dfImputedActivityByWeekdayType, aes(interval, steps.x, group=1))+facet_wrap(dfImputedActivityByWeekdayType$weekdaytype, ncol=1)+ggtitle("Average no of steps taken at every 5-minute interval")+xlab("5-minute Interval")+ylab("Average no of steps taken on weekday")+theme(plot.title = element_text(hjust = 0.5))+geom_line()
+```
+
+From the plots, we can conclude the activity patterns between weekdays and weekends are clearly difference.
